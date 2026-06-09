@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>82-0 完美赛季挑战</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2315110f'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%23c85d2d'/%3E%3Cpath d='M10 32h44M32 10v44M17 18c10 8 20 20 30 28M47 18c-10 8-20 20-30 28' stroke='%2315110f' stroke-width='4' fill='none'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="motion-court" aria-hidden="true"></canvas>
+
+    <main class="phone-shell">
+      <section id="screen-menu" class="screen active menu-screen">
+        <div class="court-mark" aria-hidden="true">
+          <span></span>
+        </div>
+        <div class="title-lockup">
+          <p class="kicker">NBA Draft Simulator</p>
+          <h1>82-0</h1>
+          <h2>完美赛季挑战</h2>
+        </div>
+
+        <div class="menu-panel">
+          <p>随机球队、随机年代，五轮选出五名球员，拼出一支能冲击全胜的历史阵容。</p>
+          <div class="mode-picker" aria-label="选择玩法">
+            <button class="mode-card active" type="button" data-mode="classic">
+              <strong>经典抽签</strong>
+              <span>随机抽组合，1 次换球队和 1 次换年代。</span>
+            </button>
+            <button class="mode-card" type="button" data-mode="rental">
+              <strong>20块租队</strong>
+              <span>总预算 20 块，五轮从报价市场租球队。</span>
+            </button>
+          </div>
+          <div class="menu-actions">
+            <button class="button primary" id="startBtn" type="button">开始挑战</button>
+            <button class="button ghost" id="rulesBtn" type="button">玩法说明</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-game" class="screen game-screen">
+        <header class="game-header">
+          <div>
+            <p class="kicker">Perfect Season</p>
+            <h2>第 <span id="roundNow">1</span> / 5 轮</h2>
+          </div>
+          <div class="budget-chip" id="budgetChip" hidden>
+            <span>预算</span>
+            <strong id="budgetText">$20</strong>
+          </div>
+          <button class="icon-button" id="restartBtn" type="button" title="重新开始" aria-label="重新开始">↻</button>
+        </header>
+
+        <section class="roster-board" id="rosterBoard" aria-label="阵容位置"></section>
+
+        <section class="slot-card">
+          <div class="slot-row">
+            <div class="slot-reel" id="teamReel">
+              <span>球队</span>
+              <strong id="teamText">???</strong>
+            </div>
+            <div class="slot-reel" id="eraReel">
+              <span>年代</span>
+              <strong id="eraText">???</strong>
+            </div>
+          </div>
+          <div class="slot-actions">
+            <button class="button gold" id="spinBtn" type="button">抽取组合</button>
+            <button class="button mini" id="skipTeamBtn" type="button" disabled>换球队 <span id="skipTeamCount">1</span></button>
+            <button class="button mini" id="skipEraBtn" type="button" disabled>换年代 <span id="skipEraCount">1</span></button>
+          </div>
+        </section>
+
+        <section class="rental-market" id="rentalMarket" hidden>
+          <div class="draft-topline">
+            <h3>租队市场</h3>
+            <p id="marketHint">选择一个报价，支付后进入该球队候选池。</p>
+          </div>
+          <div class="offer-list" id="offerList"></div>
+        </section>
+
+        <section class="draft-area" id="draftArea" hidden>
+          <div class="draft-topline">
+            <h3 id="draftTitle">选择球员</h3>
+            <p id="draftHint">点击球员后，再点击上方高亮位置。</p>
+          </div>
+          <div class="tabs" role="tablist" aria-label="按位置筛选">
+            <button class="tab active" type="button" data-filter="all">全部</button>
+            <button class="tab" type="button" data-filter="G">后卫</button>
+            <button class="tab" type="button" data-filter="F">前锋</button>
+            <button class="tab" type="button" data-filter="C">中锋</button>
+          </div>
+          <div class="player-list" id="playerList"></div>
+        </section>
+      </section>
+
+      <section id="screen-result" class="screen result-screen">
+        <p class="kicker">Season Forecast</p>
+        <h2 id="recordText">0-82</h2>
+        <div class="grade-row">
+          <strong id="gradeText">F</strong>
+          <span id="tierText">摆烂大军</span>
+        </div>
+        <div class="meter" aria-hidden="true">
+          <span id="meterFill"></span>
+        </div>
+        <p id="verdictText" class="verdict"></p>
+        <div class="result-roster" id="resultRoster"></div>
+        <div class="result-actions">
+          <button class="button primary" id="posterBtn" type="button">生成海报</button>
+          <button class="button ghost" id="againBtn" type="button">再来一局</button>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="rulesDialog" class="dialog">
+      <form method="dialog">
+        <h3>玩法说明</h3>
+        <p>经典抽签：每轮随机一个球队和年代，从候选球员中选一人放进 PG、SG、SF、PF、C 五个位置。每局各有一次更换球队和更换年代机会。</p>
+        <p>20块租队：总预算 20 块，系统每轮给出 3 个球队/年代报价。强组合更贵，便宜组合更考验选人，预算必须覆盖 5 轮。</p>
+        <p>最终战绩由球员数据、位置适配、阵容均衡度和时代强度曲线共同计算。</p>
+        <button class="button primary" value="close">知道了</button>
+      </form>
+    </dialog>
+
+    <div class="poster-overlay" id="posterOverlay" hidden>
+      <canvas id="posterCanvas" width="900" height="1400"></canvas>
+      <div class="poster-actions">
+        <button class="button primary" id="downloadPosterBtn" type="button">下载海报</button>
+        <button class="button ghost" id="closePosterBtn" type="button">关闭</button>
+      </div>
+    </div>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
