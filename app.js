@@ -54,6 +54,15 @@
     { min: 0, grade: "F", label: "摆烂大军", color: "#db4a3f", verdict: "这阵容更像在争状元签。" }
   ];
 
+  const FRIEND_COMBO_KEYS = new Set([
+    "2010s|BKN",
+    "2000s|LAL",
+    "2000s|HOU",
+    "2020s|MIA",
+    "2000s|DAL",
+    "2000s|ORL"
+  ]);
+
   const dataByCombo = new Map();
   const comboMeta = new Map();
   const combos = [];
@@ -149,6 +158,10 @@
 
   function comboKey(era, team) {
     return `${era}|${team}`;
+  }
+
+  function isFriendCombo(combo) {
+    return FRIEND_COMBO_KEYS.has(comboKey(combo.era, combo.team));
   }
 
   function teamName(team) {
@@ -368,6 +381,20 @@
     addRandom(available.filter((offer) => offer.price >= 3 && offer.price <= Math.min(5, maxPrice)));
     addRandom(available.filter((offer) => offer.price >= Math.max(1, maxPrice - 2) && offer.price <= maxPrice));
 
+    if (!selected.some(isFriendCombo)) {
+      const friendOffer = sourcePool
+        .filter((offer) => isFriendCombo(offer))
+        .sort((a, b) => a.price - b.price || b.strength - a.strength)[0];
+      if (friendOffer) {
+        pushOffer(friendOffer.price <= maxPrice ? friendOffer : {
+          ...friendOffer,
+          originalPrice: friendOffer.price,
+          price: maxPrice,
+          label: "好友特邀"
+        });
+      }
+    }
+
     const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
     for (const offer of shuffledAvailable) {
       if (selected.length >= 3) break;
@@ -454,6 +481,10 @@
       if (filter && !filter(combo)) return false;
       return !state.usedCombos.has(comboKey(combo.era, combo.team));
     });
+    const friendAvailable = available.filter(isFriendCombo);
+    if (!filter && friendAvailable.length) {
+      return friendAvailable[Math.floor(Math.random() * friendAvailable.length)];
+    }
     const pool = available.length ? available : combos.filter((combo) => !filter || filter(combo));
     return pool[Math.floor(Math.random() * pool.length)];
   }
