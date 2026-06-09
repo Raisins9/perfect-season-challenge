@@ -62,6 +62,8 @@
     "2000s|DAL",
     "2000s|ORL"
   ]);
+  const FRIEND_CLASSIC_CHANCE = 0.38;
+  const FRIEND_RENTAL_CHANCE = 0.45;
 
   const dataByCombo = new Map();
   const comboMeta = new Map();
@@ -381,7 +383,7 @@
     addRandom(available.filter((offer) => offer.price >= 3 && offer.price <= Math.min(5, maxPrice)));
     addRandom(available.filter((offer) => offer.price >= Math.max(1, maxPrice - 2) && offer.price <= maxPrice));
 
-    if (!selected.some(isFriendCombo)) {
+    if (!selected.some(isFriendCombo) && Math.random() < FRIEND_RENTAL_CHANCE) {
       const friendOffer = sourcePool
         .filter((offer) => isFriendCombo(offer))
         .sort((a, b) => a.price - b.price || b.strength - a.strength)[0];
@@ -482,7 +484,7 @@
       return !state.usedCombos.has(comboKey(combo.era, combo.team));
     });
     const friendAvailable = available.filter(isFriendCombo);
-    if (!filter && friendAvailable.length) {
+    if (!filter && friendAvailable.length && Math.random() < FRIEND_CLASSIC_CHANCE) {
       return friendAvailable[Math.floor(Math.random() * friendAvailable.length)];
     }
     const pool = available.length ? available : combos.filter((combo) => !filter || filter(combo));
