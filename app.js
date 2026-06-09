@@ -71,6 +71,7 @@
   const usedNames = new Set();
   let currentFilter = "all";
   let pendingPick = null;
+  let pendingMove = null;
   let selectedMode = "classic";
 
   const state = {
@@ -204,6 +205,7 @@
     state.result = null;
     usedNames.clear();
     pendingPick = null;
+    pendingMove = null;
     currentFilter = "all";
     showScreen("screen-game");
     nextRound();
@@ -222,6 +224,7 @@
     state.result = null;
     usedNames.clear();
     pendingPick = null;
+    pendingMove = null;
     currentFilter = "all";
     els.draftArea.hidden = true;
     els.rentalMarket.hidden = true;
@@ -239,6 +242,7 @@
     state.currentEra = null;
     state.rentalOffers = [];
     pendingPick = null;
+    pendingMove = null;
     currentFilter = "all";
     els.roundNow.textContent = String(state.round + 1);
     els.teamText.textContent = state.mode === "rental" ? "市场" : "???";
@@ -273,15 +277,30 @@
         applyTeamColors(slot, player.team);
         slot.innerHTML = `<strong></strong><small></small>`;
         slot.querySelector("strong").textContent = player.name;
-        slot.querySelector("small").textContent = `${pos} · ${teamName(player.team)} · ${player.era}`;
-      } else if (pendingPick && pendingPick.positions.includes(pos)) {
+        const moveTargets = getMoveTargets(pos);
+        const canMakeRoom = pendingPick && pendingPick.positions.includes(pos) && moveTargets.length;
+        if (pendingMove && pendingMove.fromPos === pos) {
+          slot.classList.add("move-source");
+          slot.querySelector("small").textContent = `${pos} · 选择空位`;
+        } else {
+          slot.querySelector("small").textContent = `${pos} · ${teamName(player.team)} · ${player.era}`;
+        }
+        if (!pendingMove && canMakeRoom) {
+          slot.classList.add("target", "move-ready");
+        } else if (!pendingMove && moveTargets.length && !pendingPick && !els.draftArea.hidden) {
+          slot.classList.add("move-ready");
+        }
+      } else if (pendingMove && pendingMove.player.positions.includes(pos)) {
+        slot.classList.add("target");
+        slot.innerHTML = `<strong>${pos}</strong><small>换到这里</small>`;
+      } else if (!pendingMove && pendingPick && pendingPick.positions.includes(pos)) {
         slot.classList.add("target");
         slot.innerHTML = `<strong>${pos}</strong><small>可放入</small>`;
       } else {
         slot.innerHTML = `<strong>${pos}</strong><small>待选择</small>`;
       }
 
-      slot.addEventListener("click", () => placePending(pos));
+      slot.addEventListener("click", () => handleSlotClick(pos));
       els.rosterBoard.appendChild(slot);
     });
   }
@@ -419,13 +438,32 @@
     return selected.sort((a, b) => a.price - b.price);
   }
 
+  function getOpenPositions() {
+    return POSITIONS.filter((pos) => !state.slots[pos]);
+  }
+
+  function getMoveTargets(fromPos) {
+    const player = state.slots[fromPos];
+    if (!player) return [];
+    return getOpenPositions().filter((pos) => player.positions.includes(pos));
+  }
+
+  function findRelocationOptionsForPlayer(player) {
+    return player.positions
+      .filter((pos) => state.slots[pos])
+      .map((fromPos) => ({ fromPos, targets: getMoveTargets(fromPos) }))
+      .filter((option) => option.targets.length);
+  }
+
+  function canDraftPlayer(player) {
+    return player.positions.some((pos) => !state.slots[pos]) || findRelocationOptionsForPlayer(player).length > 0;
+  }
+
   function hasDraftablePlayer(combo) {
-    const openPositions = POSITIONS.filter((pos) => !state.slots[pos]);
-    if (!openPositions.length) return false;
     const players = dataByCombo.get(comboKey(combo.era, combo.team)) || [];
     return players
       .filter((player) => !usedNames.has(player.name))
-      .some((player) => player.positions.some((pos) => openPositions.includes(pos)));
+      .some(canDraftPlayer);
   }
 
   function renderRentalMarket() {
@@ -603,9 +641,11 @@
     let players = (dataByCombo.get(key) || []).filter((player) => !usedNames.has(player.name));
     const openPositions = POSITIONS.filter((pos) => !state.slots[pos]);
     const canFillOpen = (player) => player.positions.some((pos) => openPositions.includes(pos));
+    const canFillAfterMove = (player) => !canFillOpen(player) && canDraftPlayer(player);
     players = [
       ...players.filter(canFillOpen),
-      ...players.filter((player) => !canFillOpen(player))
+      ...players.filter(canFillAfterMove),
+      ...players.filter((player) => !canFillOpen(player) && !canFillAfterMove(player))
     ].slice(0, 16);
     if (currentFilter === "G") return players.filter((player) => player.positions.some((pos) => pos === "PG" || pos === "SG"));
     if (currentFilter === "F") return players.filter((player) => player.positions.some((pos) => pos === "SF" || pos === "PF"));
@@ -619,17 +659,81 @@
 
   function selectPlayer(player) {
     const openPositions = player.positions.filter((pos) => !state.slots[pos]);
-    if (!openPositions.length) {
-      els.draftHint.textContent = `${player.name} 可打的位置已经满了。`;
+    const relocationOptions = findRelocationOptionsForPlayer(player);
+    if (!openPositions.length && !relocationOptions.length) {
+      els.draftHint.textContent = `${player.name} 可打的位置已经满了，且没有可腾出的空位。`;
       pendingPick = null;
+      pendingMove = null;
       renderRoster();
       renderPlayers();
       return;
     }
     pendingPick = player;
-    els.draftHint.textContent = `选择上方高亮位置放入 ${player.name}`;
+    pendingMove = null;
+    els.draftHint.textContent = openPositions.length
+      ? `选择上方高亮位置放入 ${player.name}`
+      : `点击上方高亮的已选球员，先把他换到空位，再放入 ${player.name}`;
     renderRoster();
     renderPlayers();
+  }
+
+  function handleSlotClick(pos) {
+    if (pendingMove) {
+      if (!state.slots[pos] && pendingMove.player.positions.includes(pos)) {
+        moveRosterPlayer(pendingMove.fromPos, pos);
+      } else if (pos === pendingMove.fromPos) {
+        cancelMove();
+      } else if (state.slots[pos] && getMoveTargets(pos).length) {
+        startMove(pos);
+      }
+      return;
+    }
+
+    const player = state.slots[pos];
+    if (player) {
+      startMove(pos);
+      return;
+    }
+
+    placePending(pos);
+  }
+
+  function startMove(fromPos) {
+    const player = state.slots[fromPos];
+    const targets = getMoveTargets(fromPos);
+    if (!player || !targets.length) {
+      if (pendingPick && pendingPick.positions.includes(fromPos)) {
+        els.draftHint.textContent = `${player?.name || fromPos} 没有可换过去的空位。`;
+      }
+      return;
+    }
+    pendingMove = { fromPos, player };
+    els.draftHint.textContent = `选择空位，把 ${player.name} 从 ${fromPos} 换过去。`;
+    renderRoster();
+  }
+
+  function moveRosterPlayer(fromPos, toPos) {
+    const player = state.slots[fromPos];
+    if (!player || state.slots[toPos] || !player.positions.includes(toPos)) return;
+    state.slots[toPos] = { ...player, assignedPos: toPos };
+    delete state.slots[fromPos];
+    pendingMove = null;
+    els.draftHint.textContent = pendingPick
+      ? `已将 ${player.name} 换到 ${toPos}，现在可以放入 ${pendingPick.name}。`
+      : `已将 ${player.name} 换到 ${toPos}。`;
+    renderRoster();
+    renderPlayers();
+  }
+
+  function cancelMove() {
+    const playerName = pendingMove?.player?.name;
+    pendingMove = null;
+    els.draftHint.textContent = pendingPick
+      ? `继续选择上方高亮位置放入 ${pendingPick.name}`
+      : playerName
+        ? `已取消 ${playerName} 的换位。`
+        : "已取消换位。";
+    renderRoster();
   }
 
   function placePending(pos) {
@@ -637,6 +741,7 @@
     state.slots[pos] = { ...pendingPick, assignedPos: pos };
     usedNames.add(pendingPick.name);
     pendingPick = null;
+    pendingMove = null;
     state.round += 1;
     renderRoster();
     els.draftArea.hidden = true;
