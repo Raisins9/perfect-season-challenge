@@ -80,11 +80,13 @@
     startBtn: document.getElementById("startBtn"),
     rulesBtn: document.getElementById("rulesBtn"),
     modeButtons: document.querySelectorAll(".mode-card"),
+    homeBtn: document.getElementById("homeBtn"),
     restartBtn: document.getElementById("restartBtn"),
     spinBtn: document.getElementById("spinBtn"),
     skipTeamBtn: document.getElementById("skipTeamBtn"),
     skipEraBtn: document.getElementById("skipEraBtn"),
     againBtn: document.getElementById("againBtn"),
+    resultHomeBtn: document.getElementById("resultHomeBtn"),
     posterBtn: document.getElementById("posterBtn"),
     closePosterBtn: document.getElementById("closePosterBtn"),
     downloadPosterBtn: document.getElementById("downloadPosterBtn"),
@@ -190,6 +192,27 @@
     currentFilter = "all";
     showScreen("screen-game");
     nextRound();
+  }
+
+  function returnHome() {
+    state.round = 0;
+    state.slots = {};
+    state.currentTeam = null;
+    state.currentEra = null;
+    state.usedCombos = new Set();
+    state.skipTeam = 1;
+    state.skipEra = 1;
+    state.budget = RENTAL_BUDGET;
+    state.rentalOffers = [];
+    state.result = null;
+    usedNames.clear();
+    pendingPick = null;
+    currentFilter = "all";
+    els.draftArea.hidden = true;
+    els.rentalMarket.hidden = true;
+    els.offerList.innerHTML = "";
+    els.posterOverlay.hidden = true;
+    showScreen("screen-menu");
   }
 
   function nextRound() {
@@ -836,8 +859,10 @@
       });
     });
     els.startBtn.addEventListener("click", resetGame);
+    els.homeBtn.addEventListener("click", returnHome);
     els.restartBtn.addEventListener("click", resetGame);
     els.againBtn.addEventListener("click", resetGame);
+    els.resultHomeBtn.addEventListener("click", returnHome);
     els.spinBtn.addEventListener("click", spinCombo);
     els.skipTeamBtn.addEventListener("click", skipTeam);
     els.skipEraBtn.addEventListener("click", skipEra);
