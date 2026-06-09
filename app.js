@@ -60,7 +60,11 @@
     "2000s|HOU",
     "2020s|MIA",
     "2000s|DAL",
-    "2000s|ORL"
+    "2000s|ORL",
+    "1990s|BOS",
+    "2010s|HOU",
+    "2020s|CHI",
+    "2000s|MIL"
   ]);
   const FRIEND_CLASSIC_CHANCE = 0.38;
   const FRIEND_RENTAL_CHANCE = 0.45;
